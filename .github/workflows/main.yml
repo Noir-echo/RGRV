@@ -37,7 +37,7 @@ jobs:
           DIR=$(dirname "$(find . -name settings.gradle.kts -not -path '*/.git/*' | head -1)")
           cd "$DIR"
           gradle assembleDebug --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/RKTRL.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/RGRV.apk"
           V=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*"(.*)".*/\1/')
           echo "VERSION=$V" >> "$GITHUB_ENV"
 
@@ -47,8 +47,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: RKTRL
-          path: RKTRL.apk
+          name: RGRV
+          path: RGRV.apk
 
       - name: Publier la Release
         if: github.ref == 'refs/heads/main'
@@ -57,7 +57,7 @@ jobs:
         run: |
           TAG="v$VERSION"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" RKTRL.apk --clobber
+            gh release upload "$TAG" RGRV.apk --clobber
           else
-            gh release create "$TAG" RKTRL.apk --title "RKTRL $VERSION" --notes "RKTRL $VERSION — Android APK" --latest
+            gh release create "$TAG" RGRV.apk --title "RGRV $VERSION" --notes "RGRV $VERSION — Android APK" --latest
           fi
