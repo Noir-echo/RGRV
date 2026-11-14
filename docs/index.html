@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F3EBDE">
+  <meta name="description" content="RGRV — groovebox for Android: a rack of 6 built-in synths and drum kits, 16-track sequencer with piano roll, Destroy Mode, MIDI controller, WAV recording. Bluetooth &amp; USB MIDI.">
+  <title>RGRV — groovebox &amp; synth rack for Android</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,700&display=swap" rel="stylesheet">
+  <style>
+    /* ------------------------------------------------------------------
+       Même identité que l'appli (interface FIELD) :
+       papier, encre, un seul accent orange, Space Mono, coins biseautés.
+       ------------------------------------------------------------------ */
+    :root {
+      --paper: #F3EBDE;
+      --paper-2: #EAE1D2;
+      --ink: #111111;
+      --grey: #B9B2A6;
+      --muted: #6B665E;
+      --accent: #FF6A00;
+      --mono: "Space Mono", ui-monospace, "Courier New", monospace;
+      --cut: 12px;
+      --max: 1240px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--mono); line-height: 1.6; }
+    a { color: inherit; }
+    img { max-width: 100%; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    .label { font-size: .72rem; letter-spacing: .02em; color: var(--muted); }
+
+    /* --- formes biseautées (haut-gauche + bas-droite), comme les boutons de l'appli --- */
+    .bev {
+      --c: var(--cut); --b: 2px; --fill: var(--paper);
+      position: relative; isolation: isolate; background: var(--ink);
+      clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+    }
+    .bev::before {
+      content: ""; position: absolute; inset: var(--b); z-index: -1; background: var(--fill);
+      clip-path: polygon(calc(var(--c) - var(--b) * .6) 0, 100% 0, 100% calc(100% - var(--c) + var(--b) * .6), calc(100% - var(--c) + var(--b) * .6) 100%, 0 100%, 0 calc(var(--c) - var(--b) * .6));
+    }
+    .bev.solid { --fill: var(--ink); color: var(--paper); }
+    .bev.hot { background: var(--accent); --fill: var(--accent); color: var(--ink); }
+
+    /* --- en-tête : comme la barre du haut de l'appli --- */
+    header { position: sticky; top: 0; z-index: 10; background: var(--paper); border-bottom: 2px solid var(--ink); }
+    .bar { display: flex; align-items: center; gap: 28px; min-height: 64px; }
+    .logo { font-weight: 700; font-style: italic; font-size: 1.6rem; letter-spacing: -.02em; text-decoration: none; }
+    .tabs { display: flex; gap: 22px; flex-wrap: wrap; }
+    .tabs a { position: relative; text-decoration: none; color: var(--muted); font-size: .86rem; padding: 6px 0; }
+    .tabs a:hover, .tabs a.on { color: var(--ink); }
+    .tabs a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 3px; background: var(--ink); }
+    .status { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: .86rem; white-space: nowrap; }
+    .status .play { color: var(--accent); }
+    .status .sq { display: inline-block; width: 10px; height: 10px; background: var(--accent); margin-right: 8px; animation: blink 1.2s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* --- boutons --- */
+    .btn {
+      --c: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 56px; padding: 0 26px; font: 700 .95rem var(--mono); letter-spacing: .02em; text-decoration: none; text-transform: uppercase;
+    }
+    .btn .ico { color: var(--accent); }
+    .btn.hot .ico { color: var(--ink); }
+    .btn:hover { --fill: var(--ink); color: var(--paper); }
+    .btn.hot:hover { background: var(--ink); --fill: var(--ink); color: var(--accent); }
+    .btn.hot:hover .ico { color: var(--accent); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+    /* rayures « danger » (DESTROY MODE / KILL) : accent + papier, plaque centrale */
+    .hazard {
+      --c: 12px; display: inline-flex; padding: 9px 14px; text-decoration: none;
+      background: repeating-linear-gradient(-45deg, var(--accent) 0 9px, var(--paper) 9px 18px);
+      clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+    }
+    .hazard span { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 30px; background: var(--paper); font: 700 1rem var(--mono); text-transform: uppercase; }
+    .hazard:hover span { background: var(--ink); color: var(--paper); }
+
+    /* --- hero --- */
+    .hero { display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center; padding: 64px 0 56px; }
+    .hero h1 { margin: 10px 0 18px; font-weight: 700; font-style: italic; font-size: clamp(3.4rem, 9vw, 7.4rem); line-height: .92; letter-spacing: -.04em; }
+    .hero h1 em { color: var(--accent); font-style: italic; }
+    .hero p.lead { max-width: 560px; margin: 0 0 30px; font-size: 1rem; }
+    .meta { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: .72rem; color: var(--muted); }
+    .meta b { color: var(--ink); }
+    .frame { --c: 18px; padding: 12px; }
+    .frame img { display: block; width: 100%; height: auto; }
+    .frame figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 10px 4px 2px; font-size: .72rem; }
+    .frame figcaption span { color: var(--accent); }
+
+    /* --- compteurs façon boutons de valeur de l'appli --- */
+    .knobs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 8px 0 56px; }
+    .knob { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+    .knob .dial { position: relative; width: 132px; height: 132px; }
+    .knob svg { position: absolute; inset: 0; }
+    .knob .val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.7rem; }
+    .knob .num { position: absolute; left: 0; top: -2px; font-size: .62rem; color: var(--muted); }
+    .knob .name { --c: 6px; display: block; width: 100%; max-width: 190px; padding: 4px 8px; font-weight: 700; font-size: .78rem; text-transform: uppercase; }
+
+    /* --- sections --- */
+    section { padding: 64px 0; border-top: 2px solid var(--ink); }
+    .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 26px; }
+    .sec-head .mark { width: 6px; height: 22px; background: var(--ink); align-self: center; }
+    h2 { margin: 0; font-weight: 700; font-size: clamp(1.6rem, 3.6vw, 2.6rem); letter-spacing: -.02em; line-height: 1.1; }
+    .intro { max-width: 720px; margin: -8px 0 30px; color: var(--muted); }
+
+    /* --- grille de « pas » (fonctionnalités) : comme la grille du séquenceur --- */
+    .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .step { --c: 12px; display: flex; flex-direction: column; min-height: 210px; padding: 12px 14px 14px; transition: background .15s, color .15s; }
+    .step .top { display: flex; justify-content: space-between; font-size: .7rem; }
+    .step h3 { margin: auto 0 6px; font-size: 1.25rem; line-height: 1.15; text-transform: uppercase; }
+    .step p { margin: 0; font-size: .8rem; line-height: 1.55; }
+    .step .tie { height: 4px; margin-top: 12px; background: transparent; }
+    .step.solid .tie { background: var(--accent); }
+    .step.solid p { color: #d8d0c2; }
+    .step.play { background: var(--accent); --fill: var(--accent); color: var(--ink); }
+    .step.play p { color: var(--ink); }
+
+    /* --- écrans : onglets comme l'en-tête de l'appli --- */
+    .screen-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .screen-tabs button { --c: 8px; min-height: 44px; padding: 0 20px; border: 0; cursor: pointer; font: 700 .85rem var(--mono); color: var(--ink); }
+    .screen-tabs button[aria-selected="true"] { --fill: var(--ink); color: var(--paper); }
+    .screen-tabs button:hover:not([aria-selected="true"]) { --fill: var(--paper-2); }
+    .screen[hidden] { display: none; }
+    .screen-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .screen-notes div { --c: 8px; padding: 12px 14px; font-size: .78rem; }
+    .screen-notes b { display: block; margin-bottom: 4px; }
+
+    /* --- installation --- */
+    .install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .install article { --c: 12px; padding: 16px 18px 20px; min-height: 160px; }
+    .install .n { font-size: .7rem; color: var(--muted); }
+    .install h3 { margin: 6px 0 8px; font-size: 1.05rem; text-transform: uppercase; }
+    .install p { margin: 0; font-size: .82rem; }
+    .install article.solid .n { color: var(--accent); }
+    .install article.solid p { color: #d8d0c2; }
+
+    .final { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 22px; padding: 30px; --c: 18px; }
+    .final h2 { font-size: clamp(1.5rem, 3.4vw, 2.3rem); }
+    .final p { margin: 6px 0 0; color: var(--muted); font-size: .85rem; }
+
+    /* --- pied de page : comme la barre du bas --- */
+    footer { border-top: 2px solid var(--ink); padding: 18px 0 28px; }
+    .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .foot .btn { min-height: 46px; padding: 0 18px; font-size: .8rem; }
+    .foot small { margin-left: auto; font-size: .7rem; color: var(--muted); }
+
+
+    /* --- rack de synthés dessiné en HTML (comme la page 04 SYNTH de l'appli) --- */
+    .rack { --c: 18px; padding: 14px; }
+    .rack .rows { display: flex; flex-direction: column; gap: 8px; }
+    .rrow { display: grid; grid-template-columns: 128px 1fr 64px; gap: 10px; align-items: stretch; }
+    .rid { --c: 10px; position: relative; padding: 8px 18px 8px 10px; display: flex; flex-direction: column; justify-content: space-between; min-height: 84px; }
+    .rid small { font-size: .6rem; color: var(--muted); }
+    .rid b { font-style: italic; font-size: 1.35rem; line-height: 1; }
+    .rid.hot small { color: var(--ink); }
+    .rid .vu { position: absolute; right: 8px; top: 10px; bottom: 10px; width: 4px; background: var(--grey); }
+    .rid .vu i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--accent); transition: height .08s linear; }
+    .rid.hot .vu i { background: var(--ink); }
+    .rknobs { display: grid; grid-template-columns: repeat(4, 1fr) 6px repeat(5, 1fr); gap: 4px; align-items: center; }
+    .rknobs .sep { width: 2px; height: 70%; background: var(--grey); justify-self: center; }
+    .rk { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .rk svg { width: 100%; max-width: 50px; height: auto; display: block; }
+    .rk span { font-size: .52rem; letter-spacing: .02em; }
+    .rk.fx span { color: var(--muted); }
+    .rbtn { display: flex; flex-direction: column; gap: 6px; }
+    .rbtn button { --c: 7px; flex: 1; border: 0; cursor: pointer; font: 700 .68rem var(--mono); color: var(--ink); }
+    .rbtn button:hover, .rbtn button.on { --fill: var(--accent); }
+    .rbtn button.mute.on { --fill: repeating-linear-gradient(-45deg, var(--accent) 0 5px, var(--paper) 5px 10px); }
+    .rack figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 10px 4px 0; font-size: .72rem; }
+    .rack figcaption span { color: var(--accent); }
+
+    /* --- catalogue des instruments --- */
+    .cat { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    .inst { --c: 10px; padding: 12px 14px 14px; min-height: 150px; display: flex; flex-direction: column; }
+    .inst .top { display: flex; justify-content: space-between; font-size: .64rem; color: var(--muted); }
+    .inst h3 { margin: 10px 0 4px; font-style: italic; font-size: 1.3rem; line-height: 1; }
+    .inst p { margin: 0 0 8px; font-size: .74rem; line-height: 1.45; }
+    .inst .m { margin-top: auto; font-size: .58rem; color: var(--muted); }
+    .inst.solid .top, .inst.solid .m { color: var(--accent); }
+    .inst.solid p { color: #d8d0c2; }
+    .inst.new .top b { color: var(--accent); }
+    .inst.solid.new .top b { color: var(--paper); background: var(--accent); padding: 0 4px; }
+    .cat-head { display: flex; align-items: baseline; justify-content: space-between; margin: 26px 0 10px; font-size: .8rem; }
+    .cat-head b { font-size: 1rem; }
+
+    /* --- capture absente : cadre d'attente --- */
+    .shot-missing { display: flex; align-items: center; justify-content: center; aspect-ratio: 1920 / 1160; background: repeating-linear-gradient(-45deg, var(--paper-2) 0 14px, var(--paper) 14px 28px); font-size: .8rem; color: var(--muted); text-align: center; padding: 20px; }
+
+    .cat.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    @media (max-width: 960px) {
+      .cat { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .cat.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .cat { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rrow { grid-template-columns: 96px 1fr 52px; }
+      .rk span { display: none; }
+      .rknobs { grid-template-columns: repeat(4, 1fr); }
+      .rknobs .sep, .rk.fx { display: none; }
+      .cat.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 40px; }
+      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .knobs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
+      .screen-notes, .install { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .tabs { display: none; }
+      .status .bpm { display: none; }
+      .steps { grid-template-columns: 1fr; }
+      .step { min-height: 170px; }
+      .btn, .hazard { width: 100%; }
+      .foot small { margin-left: 0; width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .status .sq { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="wrap bar">
+      <a class="logo" href="#top" aria-label="RGRV — back to top">RGRV</a>
+      <nav class="tabs" aria-label="Sections">
+        <a href="#top" class="on">home / 00</a>
+        <a href="#features">feat / 01</a>
+        <a href="#sounds">sounds / 02</a>
+        <a href="#screens">screens / 03</a>
+        <a href="#install">install / 04</a>
+      </nav>
+      <div class="status" aria-hidden="true">
+        <span class="bpm"><span class="play">▶</span>&nbsp; ♩ <span id="bpm">124</span></span>
+        <span><span class="sq"></span>android midi</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="wrap hero">
+      <div>
+        <div class="label">ReGroove · groovebox + synth rack for Android</div>
+        <h1>MAKE<br>IT<br><em>GROOVE.</em></h1>
+        <p class="lead">Everything RKTRL does, plus its own sound: a rack of 6 built-in synths and drum kits played by the sequencer, the pads and the controller, just like external machines. Jam alone on your phone or with your gear, then record your track to a WAV file.</p>
+        <div class="btn-row">
+          <a class="btn bev hot" href="https://github.com/Noir-echo/RGRV/releases/latest/download/RGRV.apk"><span class="ico">↓</span> Download APK</a>
+        </div>
+        <div class="meta"><span><b>FREE</b></span><span>ANDROID 8+</span><span>NO SAMPLES</span><span>BLUETOOTH MIDI</span><span>USB MIDI</span><span>FRENCH &amp; ENGLISH</span></div>
+      </div>
+      <figure class="rack bev" style="margin:0">
+        <div class="rows">
+          <div class="rrow">
+            <div class="rid bev hot"><small>R1 ▾</small><b>KIT</b><small>CH 01</small><span class="vu"><i></i></span></div>
+            <div class="rknobs"><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#FF6A00" stroke-width="4" stroke-dasharray="47.1 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">063</text></svg><span>TUNE</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#FF6A00" stroke-width="4" stroke-dasharray="47.1 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">063</text></svg><span>DECAY</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#FF6A00" stroke-width="4" stroke-dasharray="51.8 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">069</text></svg><span>TONE</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#FF6A00" stroke-width="4" stroke-dasharray="14.1 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">019</text></svg><span>CHAOS</span></div><span class="sep"></span><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>DRIVE</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>CRUSH</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>DELAY</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="9.4 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">012</text></svg><span>REVERB</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="75.4 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">101</text></svg><span>LEVEL</span></div></div>
+            <div class="rbtn"><button class="bev" data-test="KIT" type="button">TEST</button><button class="bev mute" type="button">MUTE</button></div>
+          </div>
+          <div class="rrow">
+            <div class="rid bev"><small>R2 ▾</small><b>ACID</b><small>CH 02</small><span class="vu"><i></i></span></div>
+            <div class="rknobs"><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="33.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">044</text></svg><span>CUTOFF</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="65.9 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">088</text></svg><span>RESO</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="56.5 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">076</text></svg><span>ENV</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="33.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">044</text></svg><span>DECAY</span></div><span class="sep"></span><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="28.3 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">038</text></svg><span>DRIVE</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>CRUSH</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="23.6 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">031</text></svg><span>DELAY</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>REVERB</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="75.4 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">101</text></svg><span>LEVEL</span></div></div>
+            <div class="rbtn"><button class="bev" data-test="ACID" type="button">TEST</button><button class="bev mute" type="button">MUTE</button></div>
+          </div>
+          <div class="rrow">
+            <div class="rid bev"><small>R3 ▾</small><b>SUPER</b><small>CH 04</small><span class="vu"><i></i></span></div>
+            <div class="rknobs"><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="61.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">082</text></svg><span>CUTOFF</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="42.4 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">057</text></svg><span>SPREAD</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="18.8 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">025</text></svg><span>RESO</span></div><div class="rk"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="33.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">044</text></svg><span>SHAPE</span></div><span class="sep"></span><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>DRIVE</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>CRUSH</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="0.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">000</text></svg><span>DELAY</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="33.0 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">044</text></svg><span>REVERB</span></div><div class="rk fx"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="#B9B2A6" stroke-width="1.5" stroke-dasharray="94.2 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="20" fill="none" stroke="#111" stroke-width="4" stroke-dasharray="65.9 200" transform="rotate(135 25 25)"/><circle cx="25" cy="25" r="14" fill="#F3EBDE" stroke="#111" stroke-width="1.2"/><text x="25" y="28.5" text-anchor="middle" font-family="Space Mono, monospace" font-weight="700" font-size="9" fill="#111">088</text></svg><span>LEVEL</span></div></div>
+            <div class="rbtn"><button class="bev" data-test="SUPER" type="button">TEST</button><button class="bev mute" type="button">MUTE</button></div>
+          </div>
+        </div>
+        <figcaption><span>04 SYNTH</span>PRESS TEST TO HEAR A RACK</figcaption>
+      </figure>
+    </div>
+
+    <!-- compteurs, dessinés comme les boutons de valeur de l'appli -->
+    <div class="wrap knobs" aria-label="Key numbers">
+      <div class="knob">
+        <div class="dial"><svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="58" fill="none" stroke="#B9B2A6" stroke-width="2" stroke-dasharray="273.3 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="58" fill="none" stroke="#111" stroke-width="7" stroke-dasharray="102.5 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="43" fill="#F3EBDE" stroke="#111" stroke-width="2"/></svg><span class="val">6</span><span class="num">001</span></div>
+        <span class="name bev">racks</span>
+      </div>
+      <div class="knob">
+        <div class="dial"><svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="58" fill="none" stroke="#B9B2A6" stroke-width="2" stroke-dasharray="273.3 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="58" fill="none" stroke="#FF6A00" stroke-width="7" stroke-dasharray="256.9 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="43" fill="#FF6A00" stroke="#111" stroke-width="2"/></svg><span class="val">15</span><span class="num">002</span></div>
+        <span class="name bev">instruments</span>
+      </div>
+      <div class="knob">
+        <div class="dial"><svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="58" fill="none" stroke="#B9B2A6" stroke-width="2" stroke-dasharray="273.3 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="58" fill="none" stroke="#111" stroke-width="7" stroke-dasharray="273.3 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="43" fill="#F3EBDE" stroke="#111" stroke-width="2"/></svg><span class="val">16</span><span class="num">003</span></div>
+        <span class="name bev">tracks</span>
+      </div>
+      <div class="knob">
+        <div class="dial"><svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="58" fill="none" stroke="#B9B2A6" stroke-width="2" stroke-dasharray="273.3 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="58" fill="none" stroke="#111" stroke-width="7" stroke-dasharray="164.0 400" transform="rotate(135 66 66)"/><circle cx="66" cy="66" r="43" fill="#F3EBDE" stroke="#111" stroke-width="2"/></svg><span class="val">WAV</span><span class="num">004</span></div>
+        <span class="name bev">REC to file</span>
+      </div>
+    </div>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="sec-head"><span class="mark"></span><h2>A WHOLE STUDIO IN YOUR POCKET.</h2></div>
+        <p class="intro">Each block is a step: the orange one is the playhead.</p>
+        <div class="steps" id="steps">
+          <article class="step bev solid"><div class="top"><span>1</span><span>RACK</span></div><h3>6-slot synth rack</h3><p>Each slot holds a synth or a drum kit with 4 sound-shaping macros, drive, crush, tempo-synced delay and reverb.</p><div class="tie"></div></article>
+          <article class="step bev"><div class="top"><span>2</span><span>MIDI</span></div><h3>Plays like real gear</h3><p>Each rack listens to a MIDI channel. Whatever the sequencer, pads or controller send there plays the rack.</p><div class="tie"></div></article>
+          <article class="step bev solid"><div class="top"><span>3</span><span>SEQ</span></div><h3>16 tracks · piano roll</h3><p>1024 steps per track, chords, conditions, ratchets, and a piano roll to stamp notes and free chords onto steps.</p><div class="tie"></div></article>
+          <article class="step bev"><div class="top"><span>4</span><span>GEN</span></div><h3>Auto · Euclid · Random</h3><p>Generate basslines, acid, pads, riffs or euclidean rhythms, then let the racks play them.</p><div class="tie"></div></article>
+          <article class="step bev solid"><div class="top"><span>5</span><span>DSTR</span></div><h3>Destroy Mode</h3><p>An X/Y pad driving 9 live MIDI effects — repeat, stutter, echo, filter, tape stop, warp…</p><div class="tie"></div></article>
+          <article class="step bev"><div class="top"><span>6</span><span>CTRL</span></div><h3>128 assignable CC</h3><p>4 banks of 32 knobs and a fader. The default knobs already tweak the racks: cutoff, resonance, reverb…</p><div class="tie"></div></article>
+          <article class="step bev solid"><div class="top"><span>7</span><span>REC</span></div><h3>Record to WAV</h3><p>One tap on REC, one tap to stop, name your track and save it wherever you like.</p><div class="tie"></div></article>
+          <article class="step bev"><div class="top"><span>8</span><span>LINK</span></div><h3>Bluetooth + USB MIDI</h3><p>Keep driving your external machines alongside the built-in sounds. MIDI clock out included.</p><div class="tie"></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sounds">
+      <div class="wrap">
+        <div class="sec-head"><span class="mark"></span><h2>15 INSTRUMENTS. ZERO SAMPLES.</h2></div>
+        <p class="intro">Every sound is generated live by code written for RGRV: nothing is sampled, and no brand names are used. Each instrument has 4 macros chosen to really transform the sound.</p>
+        <div class="cat-head"><b>DRUM KITS</b><span class="label">notes 36 – 43</span></div>
+        <div class="cat six"><article class="inst bev solid"><div class="top"><span>01 · DRUMS</span></div><h3>KIT</h3><p>Synth drum machine: kick, snare, clap, hats, tom, rim, bell.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article><article class="inst bev new"><div class="top"><span>02 · DRUMS</span><b>NEW</b></div><h3>BOOM</h3><p>Round analogue drums with a long, deep kick, conga and cowbell.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article><article class="inst bev solid new"><div class="top"><span>03 · DRUMS</span><b>NEW</b></div><h3>PUNCH</h3><p>Techno / house: tight kick, bright snare, ride.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article><article class="inst bev new"><div class="top"><span>04 · DRUMS</span><b>NEW</b></div><h3>DUST</h3><p>Lo-fi drums with the grain of an old 12-bit sampler.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article><article class="inst bev solid new"><div class="top"><span>05 · DRUMS</span><b>NEW</b></div><h3>PERC</h3><p>Congas, bongo, shaker, tambourine, claves, wood block.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article><article class="inst bev new"><div class="top"><span>06 · DRUMS</span><b>NEW</b></div><h3>INDUS</h3><p>Distorted industrial hits, sheet metal and lasers.</p><div class="m">TUNE · DECAY · TONE · CHAOS</div></article></div>
+        <div class="cat-head"><b>SYNTHS</b><span class="label">mono &amp; poly</span></div>
+        <div class="cat"><article class="inst bev solid"><div class="top"><span>01 · SYNTH</span></div><h3>ACID</h3><p>Squelchy acid bass with accent and slide.</p><div class="m">CUTOFF · RESO · ENV · DECAY</div></article><article class="inst bev"><div class="top"><span>02 · SYNTH</span></div><h3>MONO</h3><p>Fat 3-oscillator mono with a 24 dB filter and glide.</p><div class="m">CUTOFF · RESO · CONTOUR · GLIDE</div></article><article class="inst bev solid new"><div class="top"><span>03 · SYNTH</span><b>NEW</b></div><h3>SUB</h3><p>Deep drum-machine boom bass that slides between notes.</p><div class="m">DECAY · PUNCH · DRIVE · GLIDE</div></article><article class="inst bev"><div class="top"><span>04 · SYNTH</span></div><h3>SUPER</h3><p>Supersaw pads, trance chords and huge leads.</p><div class="m">CUTOFF · SPREAD · RESO · SHAPE</div></article><article class="inst bev solid new"><div class="top"><span>05 · SYNTH</span><b>NEW</b></div><h3>WAVE</h3><p>Wavetable synth whose waveform keeps evolving.</p><div class="m">WAVE · MOVE · CUTOFF · ENV</div></article><article class="inst bev"><div class="top"><span>06 · SYNTH</span></div><h3>FM</h3><p>Bells, electric piano and metallic basses.</p><div class="m">RATIO · DEPTH · DECAY · BRIGHT</div></article><article class="inst bev solid new"><div class="top"><span>07 · SYNTH</span><b>NEW</b></div><h3>PLUCK</h3><p>Physically modelled strings: guitar, harp, koto.</p><div class="m">TONE · DECAY · DAMP · BODY</div></article><article class="inst bev new"><div class="top"><span>08 · SYNTH</span><b>NEW</b></div><h3>ORGAN</h3><p>Tonewheel organ with percussion and rotary speaker.</p><div class="m">DRAWBAR · PERC · ROTARY · DRIVE</div></article><article class="inst bev solid new"><div class="top"><span>09 · SYNTH</span><b>NEW</b></div><h3>VOX</h3><p>Formant choir singing A, E, I, O, U.</p><div class="m">VOWEL · BREATH · ENSEMB · ATTACK</div></article></div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <div class="wrap">
+        <div class="sec-head"><span class="mark"></span><h2>TAKE A CLOSER LOOK.</h2></div>
+        <div class="screen-tabs" role="tablist" aria-label="App pages">
+          <button class="bev" role="tab" id="tab-synth" aria-controls="scr-synth" aria-selected="true">04 SYNTH</button>
+          <button class="bev" role="tab" id="tab-ctrl" aria-controls="scr-ctrl" aria-selected="false" tabindex="-1">01 CTRL</button>
+          <button class="bev" role="tab" id="tab-seq" aria-controls="scr-seq" aria-selected="false" tabindex="-1">02 SEQ</button>
+          <button class="bev" role="tab" id="tab-dstr" aria-controls="scr-dstr" aria-selected="false" tabindex="-1">03 DESTROY</button>
+        </div>
+        <figure class="frame bev screen" id="scr-synth" role="tabpanel" aria-labelledby="tab-synth" style="margin:0">
+          <img src="assets/screen-synth.jpg" width="1920" height="1160" loading="lazy" alt="Synth page: six rack rows with instrument name, macros, effects, TEST and MUTE, one-octave keyboard at the bottom">
+          <figcaption><span>04 SYNTH</span>RACK · 6 SLOTS</figcaption>
+        </figure>
+        <figure class="frame bev screen" id="scr-ctrl" role="tabpanel" aria-labelledby="tab-ctrl" style="margin:0" hidden>
+          <img src="assets/screen-controller.jpg" width="1920" height="1160" loading="lazy" alt="Controller: knobs with value arcs, info panel and fader">
+          <figcaption><span>01 CTRL</span>CONTROLLER · 32 KNOBS × 4 BANKS</figcaption>
+        </figure>
+        <figure class="frame bev screen" id="scr-seq" role="tabpanel" aria-labelledby="tab-seq" style="margin:0" hidden>
+          <img src="assets/screen-sequencer.jpg" width="1920" height="1160" loading="lazy" alt="Sequencer: 16 tracks, piano roll and step grid">
+          <figcaption><span>02 SEQ</span>SEQUENCER · 16 TRACKS · PIANO ROLL</figcaption>
+        </figure>
+        <figure class="frame bev screen" id="scr-dstr" role="tabpanel" aria-labelledby="tab-dstr" style="margin:0" hidden>
+          <img src="assets/screen-destroy.jpg" width="1920" height="1160" loading="lazy" alt="Destroy Mode: X/Y pad with geometric animation, effects and tap tempo">
+          <figcaption><span>03 DESTROY</span>DESTROY MODE · X/Y PAD</figcaption>
+        </figure>
+        <div class="screen-notes">
+          <div class="bev"><b>No menus</b>Drag a knob to turn it, double-tap to reset it. Tap a rack's name to change instrument or channel.</div>
+          <div class="bev"><b>Lives next to RKTRL</b>RGRV installs alongside RKTRL without replacing it.</div>
+          <div class="bev"><b>Panic button</b>One tap silences every stuck note, inside the app and on your external gear.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="wrap">
+        <div class="sec-head"><span class="mark"></span><h2>INSTALL IN 3 STEPS.</h2></div>
+        <div class="install">
+          <article class="bev solid"><div class="n">01 / DOWNLOAD</div><h3>Get the APK</h3><p>Tap Download APK on your Android phone or tablet.</p></article>
+          <article class="bev"><div class="n">02 / ALLOW</div><h3>Allow the install</h3><p>If Android asks, allow your browser or file manager to install apps from this source.</p></article>
+          <article class="bev"><div class="n">03 / PLAY</div><h3>Open RGRV</h3><p>Press PLAY: the racks sound right away. Tap the link area at the top right to add your Bluetooth or USB MIDI gear.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="final bev">
+          <div>
+            <h2>READY TO GROOVE?</h2>
+            <p>Free download · latest Android release.</p>
+          </div>
+          <a class="hazard" href="https://github.com/Noir-echo/RGRV/releases/latest/download/RGRV.apk"><span><span style="color:var(--accent)">↓</span> Download APK</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <a class="btn bev" href="https://github.com/Noir-echo/RGRV">GitHub</a>
+      <a class="btn bev" href="https://github.com/Noir-echo/RGRV/releases">All releases</a>
+      <a class="btn bev" href="https://noir-echo.github.io/RKTRL/">RKTRL</a>
+      <small>© RGRV / REGROOVE · Space Mono, SIL Open Font License</small>
+    </div>
+  </footer>
+
+  <script>
+    // Capture absente : cadre d'attente au lieu d'une image cassée
+    document.querySelectorAll('.screen img').forEach(function (img) {
+      function miss() {
+        var d = document.createElement('div');
+        d.className = 'shot-missing';
+        d.textContent = 'screenshot coming soon';
+        img.replaceWith(d);
+      }
+      if (img.complete && img.naturalWidth === 0) miss(); else img.addEventListener('error', miss);
+    });
+
+    // Onglets des captures (clavier : flèches gauche / droite)
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('.screen-tabs [role="tab"]'));
+      function select(t) {
+        tabs.forEach(function (x) {
+          var on = x === t;
+          x.setAttribute('aria-selected', on);
+          x.tabIndex = on ? 0 : -1;
+          document.getElementById(x.getAttribute('aria-controls')).hidden = !on;
+        });
+      }
+      tabs.forEach(function (t, i) {
+        t.addEventListener('click', function () { select(t); });
+        t.addEventListener('keydown', function (e) {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+          var n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+          select(n); n.focus();
+        });
+      });
+    })();
+
+    var BPM = 124, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Tête de lecture : un bloc passe en orange à chaque temps, comme dans le séquenceur
+    (function () {
+      if (reduce) return;
+      var steps = document.querySelectorAll('#steps .step');
+      var i = 0;
+      setInterval(function () {
+        steps.forEach(function (s) { s.classList.remove('play'); });
+        steps[i % steps.length].classList.add('play');
+        i++;
+      }, Math.round(60000 / BPM));
+    })();
+
+    // Vumètres du rack : ils battent au tempo (sauf rack coupé)
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.rrow'));
+    var hit = rows.map(function () { return 0; });
+    rows.forEach(function (r) {
+      var m = r.querySelector('.mute');
+      m.addEventListener('click', function () { m.classList.toggle('on'); });
+    });
+    (function () {
+      if (reduce) return;
+      var pat = [[1,0,1,0,1,0,1,1],[1,1,0,1,1,0,1,0],[1,0,0,0,1,0,0,0]], s = 0;
+      setInterval(function () {
+        rows.forEach(function (r, k) { if (pat[k][s % 8] && !r.querySelector('.mute').classList.contains('on')) hit[k] = 0.6 + Math.random() * 0.4; });
+        s++;
+      }, Math.round(60000 / BPM / 2));
+      (function tick() {
+        rows.forEach(function (r, k) { hit[k] *= 0.86; r.querySelector('.vu i').style.height = Math.round(hit[k] * 100) + '%'; });
+        requestAnimationFrame(tick);
+      })();
+    })();
+
+    // TEST : fait entendre un son proche du rack (Web Audio, dans le navigateur)
+    (function () {
+      var ac = null;
+      function ctx() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; }
+      function out(a) { var g = a.createGain(); g.gain.value = 0.5; g.connect(a.destination); return g; }
+      var play = {
+        KIT: function (a, t) {
+          var o = a.createOscillator(), g = a.createGain(), d = out(a);
+          o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+          g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          o.connect(g); g.connect(d); o.start(t); o.stop(t + 0.55);
+        },
+        ACID: function (a, t) {
+          var notes = [36, 36, 48, 39], d = out(a);
+          notes.forEach(function (n, i) {
+            var tt = t + i * 0.14, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+            o.type = 'sawtooth'; o.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+            f.type = 'lowpass'; f.Q.value = 14; f.frequency.setValueAtTime(2400, tt); f.frequency.exponentialRampToValueAtTime(220, tt + 0.13);
+            g.gain.setValueAtTime(0.5, tt); g.gain.setTargetAtTime(0, tt + 0.11, 0.02);
+            o.connect(f); f.connect(g); g.connect(d); o.start(tt); o.stop(tt + 0.2);
+          });
+        },
+        SUPER: function (a, t) {
+          var d = out(a), f = a.createBiquadFilter(), g = a.createGain();
+          f.type = 'lowpass'; f.frequency.value = 2600; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 0.08); g.gain.setTargetAtTime(0, t + 0.8, 0.25);
+          f.connect(g); g.connect(d);
+          [60, 64, 67].forEach(function (n) {
+            [-12, -5, 0, 5, 12].forEach(function (c) {
+              var o = a.createOscillator(); o.type = 'sawtooth';
+              o.frequency.value = 440 * Math.pow(2, (n - 69) / 12); o.detune.value = c;
+              o.connect(f); o.start(t); o.stop(t + 2);
+            });
+          });
+        }
+      };
+      document.querySelectorAll('[data-test]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var a = ctx(); if (a.state === 'suspended') a.resume();
+          play[b.getAttribute('data-test')](a, a.currentTime + 0.02);
+          var k = rows.indexOf(b.closest('.rrow')); if (k >= 0) hit[k] = 1;
+          b.classList.add('on'); setTimeout(function () { b.classList.remove('on'); }, 200);
+        });
+      });
+    })();
+
+    // Onglet actif dans l'en-tête selon la section visible
+    (function () {
+      var links = Array.prototype.slice.call(document.querySelectorAll('.tabs a'));
+      var ids = ['top', 'features', 'sounds', 'screens', 'install'];
+      function update() {
+        var y = window.scrollY + 140, cur = 'top';
+        ids.forEach(function (id) { var el = document.getElementById(id); if (el && el.offsetTop <= y) cur = id; });
+        links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + cur); });
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
+  </script>
+</body>
+</html>
