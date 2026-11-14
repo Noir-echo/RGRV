@@ -12,6 +12,11 @@ import android.view.MotionEvent
  */
 class HeaderBar(ctx: Context, private val code: String, private val title: String) : android.view.View(ctx) {
 
+    companion object {
+        /** Hauteur du bandeau (dp) : assez haute pour des onglets faciles à toucher. */
+        const val HEIGHT_DP = 42
+    }
+
     var status: String = "NO LINK"
         set(v) { field = v; invalidate() }
     var linked: Boolean = false
@@ -48,7 +53,7 @@ class HeaderBar(ctx: Context, private val code: String, private val title: Strin
         }
     }
 
-    private fun logoWidth() = if (Tdr.field) height * 3.4f else height * 5.2f
+    private fun logoWidth() = if (Tdr.field) height * 2.9f else height * 5.2f
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) downX = event.x
@@ -63,25 +68,68 @@ class HeaderBar(ctx: Context, private val code: String, private val title: Strin
         val base = h / 2
         p.typeface = Tdr.logo
         p.textAlign = Paint.Align.LEFT
-        p.textSize = h * 0.5f
+        p.textSize = h * 0.56f
         p.color = if (isPressed && downX < logoWidth()) Tdr.ACCENT else Tdr.WHITE
         val ty = base - (p.descent() + p.ascent()) / 2
         canvas.drawText("RGRV", dp(16), ty, p)
-        // onglets
+        // onglets : de vrais boutons encadrés ; la page affichée est pleine, en couleur d'accent
         val pageIdx = (code.toIntOrNull() ?: 1) - 1
-        val tabs = arrayOf("ctrl / 01", "seq / 02", "dstr / 03", "synth / 04")
+        val names = arrayOf("CTRL", "SEQ", "DESTROY", "SYNTH")
+        // place disponible : on garde la droite (REC, tempo, liaison) et on adapte la taille du texte
         p.typeface = Tdr.mono
         p.textSize = h * 0.28f
-        var x = logoWidth() + dp(4)
-        val tyy = base - (p.descent() + p.ascent()) / 2
-        for (i in 0..3) {
-            val tw = p.measureText(tabs[i])
-            tabL[i] = x - dp(6); tabR[i] = x + tw + dp(6)
-            p.color = if (i == pageIdx) Tdr.WHITE else Tdr.DIM
-            canvas.drawText(tabs[i], x, tyy, p)
-            if (i == pageIdx) canvas.drawRect(x, h - dp(6), x + tw, h - dp(4), p)
-            x += tw + dp(18)
+        val dev0 = deviceName?.lowercase()?.take(16) ?: tr("pas de liaison", "no link")
+        val rightW = p.measureText(dev0) + p.measureText("♩ 000") + p.measureText("REC 00:00") + h * 0.22f + dp(16 + 8 + 18 + 8 + 20 + 30 + 16)
+        val x0 = logoWidth() + dp(2)
+        val avail = (w - x0 - rightW).coerceAtLeast(dp(160))
+        var fs = h * 0.36f
+        val gap = dp(6)
+        fun need(size: Float): Float {
+            var tot = 0f
+            for (i in 0..3) {
+                p.typeface = Tdr.mono; p.textSize = size * 0.62f
+                val nw = p.measureText("0${i + 1}")
+                p.typeface = Tdr.font; p.textSize = size
+                tot += nw + dp(5) + p.measureText(names[i]) + dp(20) + gap
+            }
+            return tot
         }
+        while (fs > h * 0.24f && need(fs) > avail) fs -= dp(0.5f)
+        var x = x0
+        val bt = h * 0.14f; val bb = h * 0.86f
+        for (i in 0..3) {
+            val sel = i == pageIdx
+            p.typeface = Tdr.mono; p.textSize = fs * 0.62f
+            val num = "0${i + 1}"
+            val nw = p.measureText(num)
+            p.typeface = Tdr.font; p.textSize = fs
+            val tw = p.measureText(names[i])
+            val bw = nw + dp(5) + tw + dp(20)
+            tabL[i] = x - gap / 2; tabR[i] = x + bw + gap / 2
+            val pressed = isPressed && downX >= tabL[i] && downX <= tabR[i]
+            Tdr.cutPath(path, x, bt, x + bw, bb, dp(6))
+            p.style = Paint.Style.FILL
+            p.color = if (sel) Tdr.ACCENT else if (pressed) Tdr.PANEL2 else Tdr.BG
+            canvas.drawPath(path, p)
+            p.style = Paint.Style.STROKE; p.strokeWidth = if (sel) dp(2f) else dp(1.5f)
+            p.color = if (sel) Tdr.ACCENT else Tdr.WHITE
+            canvas.drawPath(path, p)
+            p.style = Paint.Style.FILL
+            p.textAlign = Paint.Align.LEFT
+            val ink = if (sel) Tdr.BG else Tdr.WHITE
+            p.typeface = Tdr.mono; p.textSize = fs * 0.62f
+            p.color = if (sel) Tdr.BG else Tdr.DIM
+            val cy = base - (p.descent() + p.ascent()) / 2
+            canvas.drawText(num, x + dp(10), cy, p)
+            p.typeface = Tdr.font; p.textSize = fs
+            p.color = ink
+            canvas.drawText(names[i], x + dp(10) + nw + dp(5), base - (p.descent() + p.ascent()) / 2, p)
+            x += bw + gap
+        }
+        x += dp(8)
+        p.typeface = Tdr.mono
+        p.textSize = h * 0.28f
+        val tyy = base - (p.descent() + p.ascent()) / 2
         // bouton REC : un appui lance l'enregistrement, un second l'arrête
         run {
             val rec = Recorder.recording

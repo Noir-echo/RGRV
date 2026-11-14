@@ -18,30 +18,62 @@ import kotlin.math.sin
  */
 object Instruments {
     const val NONE = 0; const val KIT = 1; const val ACID = 2; const val MONO = 3; const val SUPER = 4; const val FM = 5
-    val names = arrayOf("—", "KIT", "ACID", "MONO", "SUPER", "FM")
+    const val WAVE = 6; const val PLUCK = 7; const val ORGAN = 8; const val SUB = 9; const val VOX = 10
+    const val BOOM = 11; const val PUNCH = 12; const val DUST = 13; const val PERC = 14; const val INDUS = 15
+    val names = arrayOf("—", "KIT", "ACID", "MONO", "SUPER", "FM", "WAVE", "PLUCK", "ORGAN", "SUB", "VOX",
+        "BOOM", "PUNCH", "DUST", "PERC", "INDUS")
+    /** Ordre d'affichage dans le choix d'instrument. */
+    val drums = intArrayOf(KIT, BOOM, PUNCH, DUST, PERC, INDUS)
+    val synths = intArrayOf(ACID, MONO, SUB, SUPER, WAVE, FM, PLUCK, ORGAN, VOX)
+    fun isDrum(type: Int) = type in drums
     fun macroLabels(type: Int): Array<String> = when (type) {
-        KIT -> arrayOf("TUNE", "DECAY", "TONE", "CHAOS")
+        KIT, BOOM, PUNCH, DUST, PERC, INDUS -> arrayOf("TUNE", "DECAY", "TONE", "CHAOS")
         ACID -> arrayOf("CUTOFF", "RESO", "ENV", "DECAY")
         MONO -> arrayOf("CUTOFF", "RESO", "CONTOUR", "GLIDE")
         SUPER -> arrayOf("CUTOFF", "SPREAD", "RESO", "SHAPE")
         FM -> arrayOf("RATIO", "DEPTH", "DECAY", "BRIGHT")
+        WAVE -> arrayOf("WAVE", "MOVE", "CUTOFF", "ENV")
+        PLUCK -> arrayOf("TONE", "DECAY", "DAMP", "BODY")
+        ORGAN -> arrayOf("DRAWBAR", "PERC", "ROTARY", "DRIVE")
+        SUB -> arrayOf("DECAY", "PUNCH", "DRIVE", "GLIDE")
+        VOX -> arrayOf("VOWEL", "BREATH", "ENSEMB", "ATTACK")
         else -> arrayOf("—", "—", "—", "—")
     }
     fun defaults(type: Int): FloatArray = when (type) {
         KIT -> floatArrayOf(0.5f, 0.5f, 0.55f, 0.15f)
+        BOOM, PUNCH, DUST, INDUS -> floatArrayOf(0.5f, 0.5f, 0.5f, 0.1f)
+        PERC -> floatArrayOf(0.5f, 0.5f, 0.5f, 0.25f)
         ACID -> floatArrayOf(0.35f, 0.7f, 0.6f, 0.35f)
         MONO -> floatArrayOf(0.45f, 0.3f, 0.5f, 0.1f)
         SUPER -> floatArrayOf(0.65f, 0.45f, 0.2f, 0.35f)
         FM -> floatArrayOf(0.3f, 0.45f, 0.5f, 0.3f)
+        WAVE -> floatArrayOf(0.4f, 0.3f, 0.6f, 0.35f)
+        PLUCK -> floatArrayOf(0.6f, 0.6f, 0.3f, 0.4f)
+        ORGAN -> floatArrayOf(0.45f, 0.4f, 0.2f, 0.2f)
+        SUB -> floatArrayOf(0.5f, 0.35f, 0.2f, 0.2f)
+        VOX -> floatArrayOf(0.0f, 0.2f, 0.4f, 0.4f)
         else -> floatArrayOf(0.5f, 0.5f, 0.5f, 0.5f)
     }
     fun create(type: Int, sr: Float): Instrument? = when (type) {
         KIT -> Kit(sr); ACID -> Acid(sr); MONO -> Mono(sr); SUPER -> Super(sr); FM -> Fm(sr)
+        WAVE -> Wave(sr); PLUCK -> Pluck(sr); ORGAN -> Organ(sr); SUB -> Sub(sr); VOX -> Vox(sr)
+        BOOM -> DrumKit(sr, KitStyles.BOOM); PUNCH -> DrumKit(sr, KitStyles.PUNCH); DUST -> DrumKit(sr, KitStyles.DUST)
+        PERC -> DrumKit(sr, KitStyles.PERC); INDUS -> DrumKit(sr, KitStyles.INDUS)
         else -> null
     }
     fun describe(type: Int): String = when (type) {
         KIT -> tr("Boîte à rythmes synthétique : grosse caisse, caisse claire, clap, charleys, tom, rim, cloche (notes 36 à 43). CHAOS fait varier chaque coup.",
             "Synth drum machine: kick, snare, clap, hats, tom, rim, bell (notes 36–43). CHAOS varies every hit.")
+        BOOM -> tr("Batterie analogique ronde : grosse caisse longue et profonde, conga, cloche (notes 36 à 43).",
+            "Round analogue drums: long deep kick, conga, cowbell (notes 36–43).")
+        PUNCH -> tr("Batterie techno / house : attaque sèche, caisse claire brillante, ride (notes 36 à 43).",
+            "Techno / house drums: tight attack, bright snare, ride (notes 36–43).")
+        DUST -> tr("Batterie lo-fi au grain de vieux sampler 12 bits, idéale pour le hip-hop (notes 36 à 43).",
+            "Lo-fi drums with the grain of an old 12-bit sampler, great for hip-hop (notes 36–43).")
+        PERC -> tr("Percussions : conga grave, conga aiguë, bongo, shaker, tambourin, claves, wood-block, cloche (notes 36 à 43).",
+            "Percussion: low conga, high conga, bongo, shaker, tambourine, claves, wood block, bell (notes 36–43).")
+        INDUS -> tr("Batterie industrielle saturée : choc, souffle, clap, charley, tôle, laser, tom, métal (notes 36 à 43).",
+            "Distorted industrial drums: kick, blast, clap, hat, sheet metal, laser, tom, metal (notes 36–43).")
         ACID -> tr("Basse acid monophonique. Vélocité ≥ 110 = accent ; notes qui se chevauchent = slide.",
             "Monophonic acid bass. Velocity ≥ 110 = accent; overlapping notes = slide.")
         MONO -> tr("Gros mono 3 oscillateurs, filtre 24 dB et glissé : basses et leads.", "Fat 3-oscillator mono, 24 dB filter and glide: basses and leads.")
@@ -49,6 +81,16 @@ object Instruments {
             "Supersaw polysynth: pads, trance chords, wide leads. SHAPE goes from pluck to pad.")
         FM -> tr("Polyphonique FM : cloches, piano électrique, basses métalliques. RATIO change complètement le timbre.",
             "FM polysynth: bells, electric piano, metallic basses. RATIO changes the timbre completely.")
+        WAVE -> tr("Polyphonique à table d'ondes : WAVE choisit l'onde (de douce à agressive), MOVE la fait bouger toute seule. ENV va du pluck à la nappe.",
+            "Wavetable polysynth: WAVE picks the waveform (soft to harsh), MOVE makes it evolve on its own. ENV goes from pluck to pad.")
+        PLUCK -> tr("Cordes pincées par modèle physique : guitare, harpe, koto, basse. DAMP étouffe la corde, BODY ajoute la caisse.",
+            "Physically modelled plucked strings: guitar, harp, koto, bass. DAMP mutes the string, BODY adds the body.")
+        ORGAN -> tr("Orgue à roues phoniques : DRAWBAR va du son doux au plein jeu, PERC ajoute l'attaque, ROTARY le haut-parleur tournant, DRIVE la saturation.",
+            "Tonewheel organ: DRAWBAR goes from soft to full, PERC adds the attack, ROTARY the rotating speaker, DRIVE the overdrive.")
+        SUB -> tr("Basse « boom » de boîte à rythmes : sinus très grave et long. PUNCH fait claquer l'attaque, notes liées = glissé.",
+            "Drum-machine « boom » bass: deep, long sine. PUNCH adds a snappy attack; overlapping notes = glide.")
+        VOX -> tr("Chœur synthétique : VOWEL passe de A à E, I, O, U ; BREATH ajoute du souffle, ENSEMB épaissit les voix.",
+            "Synth choir: VOWEL morphs A, E, I, O, U; BREATH adds air, ENSEMB thickens the voices.")
         else -> tr("Emplacement libre.", "Empty slot.")
     }
 }

@@ -426,7 +426,7 @@ class DestroyPage(private val act: Activity, private val fx: Destroyer, private 
         header = HeaderBar(c, "03", "DESTROY MODE")
         header.onLogo = { onLogo?.invoke() }
         header.onLink = { onLink?.invoke() }
-        root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dpi(34)))
+        root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dpi(HeaderBar.HEIGHT_DP)))
 
         val mid = LinearLayout(c)
         mid.orientation = LinearLayout.HORIZONTAL
@@ -547,14 +547,9 @@ class DestroyPage(private val act: Activity, private val fx: Destroyer, private 
             editPads = !editPads; btnEditPads.active = editPads
         }
         btnPlay = TdrButton(c, "▶ PLAY", Tdr.GREEN).onClick { seq.toggle(); refreshTransport() }
-        val btnNormal = TdrButton(c, "NORMAL MODE", Tdr.YELLOW)
-        btnNormal.hazard = true
-        btnNormal.onClick { onNormal?.invoke() }
         val e1 = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.1f); e1.leftMargin = c.dpi(8); e1.rightMargin = c.dpi(4)
         bar.addView(btnEditPads, e1)
-        val e2 = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.1f); e2.rightMargin = c.dpi(4)
-        bar.addView(btnPlay, e2)
-        bar.addView(btnNormal, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.7f))
+        bar.addView(btnPlay, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.4f))
 
         refreshTransport()
         return root

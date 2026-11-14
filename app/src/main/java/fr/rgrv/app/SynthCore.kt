@@ -60,15 +60,18 @@ class SynthCore(val sr: Float) {
     private var evTail = 0
 
     init {
-        // configuration par défaut : une batterie et 4 synthés sur les canaux 12 à 16
-        // (le SEQTRAK utilise les canaux 1 à 11 : les deux mondes cohabitent sans rien régler)
-        racks[0].choose(Instruments.KIT); racks[0].channel = 12
-        racks[1].choose(Instruments.ACID); racks[1].channel = 13
-        racks[2].choose(Instruments.MONO); racks[2].channel = 14
-        racks[3].choose(Instruments.SUPER); racks[3].channel = 15; racks[3].reverb = 0.35f
-        racks[4].choose(Instruments.FM); racks[4].channel = 16; racks[4].delay = 0.25f
-        racks[5].channel = 11
+        // configuration par défaut : une batterie et 4 synthés, sur les canaux 1 à 5 (dans l'ordre des racks)
+        racks[0].choose(Instruments.KIT); racks[0].channel = 1
+        racks[1].choose(Instruments.ACID); racks[1].channel = 2
+        racks[2].choose(Instruments.MONO); racks[2].channel = 3
+        racks[3].choose(Instruments.SUPER); racks[3].channel = 4; racks[3].reverb = 0.35f
+        racks[4].choose(Instruments.FM); racks[4].channel = 5; racks[4].delay = 0.25f
+        racks[5].channel = 6
     }
+
+    /** Premier canal (1, 2, 3…) qu'aucun autre rack actif n'utilise. */
+    fun freeChannel(except: Rack): Int =
+        (1..16).firstOrNull { ch -> racks.none { it !== except && it.type != Instruments.NONE && it.channel == ch } } ?: except.channel
 
     /** Ce canal est-il joué par un rack interne ? */
     fun owns(ch: Int): Boolean = racks.any { it.type != Instruments.NONE && it.channel == ch }

@@ -25,10 +25,12 @@ RGRV a son propre identifiant (`fr.rgrv.app`) : il s'installe **à côté** de R
 
 | Onglet | Page |
 |---|---|
-| `ctrl / 01` | Contrôleur : 128 boutons (canal + CC), fader avec accroche, groupes, LATCH |
-| `seq / 02` | Séquenceur 16 pistes × 1024 pas, AUTO, Euclid, RANDOM, A/B, expressions |
-| `dstr / 03` | Destroy Mode : pad X/Y d'effets MIDI, pads de notes, TAP BPM |
-| `synth / 04` | **Rack de synthés** (nouveau) |
+| `01 CTRL` | Contrôleur : 128 boutons (canal + CC), fader avec accroche, GROUP par canaux et/ou paramètres, LATCH |
+| `02 SEQ` | Séquenceur 16 pistes × 1024 pas, AUTO, Euclid, RANDOM, A/B, expressions, **piano roll** |
+| `03 DESTROY` | Destroy Mode : pad X/Y d'effets MIDI, pads de notes, TAP BPM |
+| `04 SYNTH` | **Rack de synthés** |
+
+On change de page uniquement par les onglets du bandeau du haut (la page affichée est en couleur d'accent).
 
 ---
 
@@ -43,17 +45,28 @@ Six rangées, une par rack. Chaque rangée :
 - **TEST** (maintenir = joue une note) et **MUTE**.
 
 Glisser sur un bouton pour le tourner (haut / droite = plus), **double-toucher** pour le remettre à sa valeur de départ.
-En bas : un clavier d'une octave (OCT −/+) qui joue le rack sélectionné, ▶ PLAY, PANIC.
+En bas : un clavier d'une octave (OCT −/+) qui joue le rack sélectionné, ▶ PLAY et PANIC
+(coupe immédiatement toutes les notes, dans l'appli et sur l'appareil externe, si une note reste bloquée).
 
 ### Instruments (synthèses originales, libres de droits)
 
 | Nom | Esprit | Macros |
 |---|---|---|
 | **KIT** | boîte à rythmes synthétique, 8 sons sur les notes 36–43 (puis en boucle) | TUNE · DECAY · TONE · CHAOS |
+| **BOOM** | batterie analogique ronde, grosse caisse longue, conga, cloche | TUNE · DECAY · TONE · CHAOS |
+| **PUNCH** | batterie techno / house : attaque sèche, caisse claire brillante, ride | TUNE · DECAY · TONE · CHAOS |
+| **DUST** | batterie lo-fi au grain de vieux sampler 12 bits | TUNE · DECAY · TONE · CHAOS |
+| **PERC** | congas, bongo, shaker, tambourin, claves, wood-block, cloche | TUNE · DECAY · TONE · CHAOS |
+| **INDUS** | batterie industrielle saturée : chocs, tôles, laser | TUNE · DECAY · TONE · CHAOS |
 | **ACID** | basse acid monophonique (vélocité ≥ 110 = accent, notes liées = slide) | CUTOFF · RESO · ENV · DECAY |
 | **MONO** | gros mono 3 oscillateurs, filtre 24 dB, glissé | CUTOFF · RESO · CONTOUR · GLIDE |
 | **SUPER** | polyphonique supersaw (nappes, accords, leads larges) | CUTOFF · SPREAD · RESO · SHAPE |
 | **FM** | polyphonique FM 2 opérateurs (cloches, piano électrique, basses métalliques) | RATIO · DEPTH · DECAY · BRIGHT |
+| **SUB** | basse « boom » de boîte à rythmes, glissé entre notes liées | DECAY · PUNCH · DRIVE · GLIDE |
+| **WAVE** | polyphonique à table d'ondes, onde qui se transforme | WAVE · MOVE · CUTOFF · ENV |
+| **PLUCK** | cordes pincées par modèle physique (guitare, harpe, koto, basse) | TONE · DECAY · DAMP · BODY |
+| **ORGAN** | orgue à roues phoniques : tirettes, percussion, haut-parleur tournant | DRAWBAR · PERC · ROTARY · DRIVE |
+| **VOX** | chœur à formants (voyelles A, E, I, O, U) | VOWEL · BREATH · ENSEMB · ATTACK |
 
 Tout le code de synthèse est écrit pour RGRV (algorithmes classiques du domaine public : PolyBLEP,
 filtre à variable d'état, filtre en échelle, réverbération de structure Freeverb). Aucun échantillon,
@@ -63,7 +76,8 @@ aucun nom de marque : les instruments s'inspirent de *styles* de synthèse, pas 
 
 Chaque rack écoute un canal MIDI. Tout ce qui est envoyé sur ce canal — séquenceur, contrôleur,
 Destroy Mode, pads — joue le rack **au lieu** de partir vers l'appareil externe.
-Par défaut : KIT canal 12, ACID 13, MONO 14, SUPER 15, FM 16 (le SEQTRAK utilise 1 à 11, les deux cohabitent).
+Par défaut : KIT canal 1, ACID 2, MONO 3, SUPER 4, FM 5. Un rack qu'on crée prend le premier canal libre (1, 2, 3…),
+modifiable au même endroit. Attention : un canal joué par un rack n'est plus envoyé à l'appareil externe.
 Deux racks sur le même canal = les deux sons superposés.
 
 ### CC reconnus par les racks

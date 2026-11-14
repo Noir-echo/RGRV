@@ -101,7 +101,7 @@ class MainActivity : Activity() {
         fxPage.onNormal = { showPage(0) }
         fxPage.onSave = { Store.saveFx(this, fx) }
         fxPage.onTempo = { seqPage.refreshTempo(); headers().forEach { it.invalidate() } }
-        synthPage.onGoController = { showPage(0) }
+        synthPage.onPanic = { for (ch in 1..16) { midi.sendCC(ch, 123, 0); midi.sendCC(ch, 120, 0) } }
         synthPage.onSave = { saveSynthSoon() }
         ctrl.onLogo = { showOptions() }
         seqPage.onLogo = { showOptions() }
@@ -113,6 +113,7 @@ class MainActivity : Activity() {
             h.onRec = { toggleRec() }
         }
         ctrl.onLink = { showDeviceDialog() }
+        seqPage.onPreview = { ch, n, on -> if (on) midi.noteOn(ch, n, 100) else midi.noteOff(ch, n) }
         seqPage.onLink = { showDeviceDialog() }
         fxPage.onLink = { showDeviceDialog() }
         synthPage.onLink = { showDeviceDialog() }

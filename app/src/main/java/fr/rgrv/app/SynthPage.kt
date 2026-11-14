@@ -111,7 +111,7 @@ class RackView(ctx: Context, val rack: Rack) : View(ctx) {
                     }
                 }
                 if (zone == 3 && !empty) {
-                    testNote = if (rack.type == Instruments.KIT) 36 else 48
+                    testNote = if (Instruments.isDrum(rack.type)) 36 else 48
                     AudioEngine.core.midi(0x90 or (rack.channel - 1), testNote, 100)
                 }
                 isPressed = true
@@ -355,7 +355,8 @@ class SynthPage(private val act: Activity, private val seq: Sequencer) {
     var onLogo: (() -> Unit)? = null
     var onLink: (() -> Unit)? = null
     var onSave: (() -> Unit)? = null
-    var onGoController: (() -> Unit)? = null
+    /** PANIC : coupe toutes les notes, dans l'appli et sur l'appareil externe. */
+    var onPanic: (() -> Unit)? = null
 
     lateinit var header: HeaderBar
         private set
@@ -379,7 +380,7 @@ class SynthPage(private val act: Activity, private val seq: Sequencer) {
         header = HeaderBar(c, "04", "SYNTH")
         header.onLogo = { onLogo?.invoke() }
         header.onLink = { onLink?.invoke() }
-        root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dpi(34)))
+        root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dpi(HeaderBar.HEIGHT_DP)))
 
         val scroll = ScrollView(c)
         scroll.isVerticalScrollBarEnabled = false
@@ -425,10 +426,8 @@ class SynthPage(private val act: Activity, private val seq: Sequencer) {
         bar.addView(btnPlay, lp(1.1f))
         val panic = TdrButton(c, "PANIC", Tdr.RED)
         panic.hazard = true
-        panic.onClick { keys.releaseAll(); core.panic() }
-        bar.addView(panic, lp(1f))
-        val back = TdrButton(c, "CONTROLLER", Tdr.WHITE).onClick { onGoController?.invoke() }
-        bar.addView(back, lp(1.2f, 0))
+        panic.onClick { keys.releaseAll(); core.panic(); onPanic?.invoke() }
+        bar.addView(panic, lp(1f, 0))
         refreshOct()
         refreshTransport()
         return root
@@ -469,16 +468,46 @@ class SynthPage(private val act: Activity, private val seq: Sequencer) {
     private fun pickInstrument(r: Rack) {
         val c: Context = act
         val d = TdrDialog(c, "RACK ${r.index + 1}", Tdr.ACCENT)
-        d.section(tr("INSTRUMENT", "INSTRUMENT"))
-        val types = intArrayOf(Instruments.KIT, Instruments.ACID, Instruments.MONO, Instruments.SUPER, Instruments.FM, Instruments.NONE)
         val desc = d.note(Instruments.describe(r.type), Tdr.WHITE)
         var chosen = r.type
-        val grid = choiceGrid(c, types.map { if (it == Instruments.NONE) tr("VIDE", "EMPTY") else Instruments.names[it] }.toTypedArray(),
-            3, types.indexOf(r.type), Tdr.ACCENT) { i -> chosen = types[i]; desc.text = Instruments.describe(chosen) }
-        d.body.addView(grid, d.body.childCount - 1)
+        // deux familles : batteries puis synthés, + « vide »
+        val all = ArrayList<Pair<Int, TdrButton>>()
+        fun group(title: String, types: IntArray, cols: Int) {
+            d.section(title)
+            types.toList().chunked(cols).forEach { line ->
+                val row = LinearLayout(c)
+                row.orientation = LinearLayout.HORIZONTAL
+                for (t in line) {
+                    val b = TdrButton(c, if (t == Instruments.NONE) tr("VIDE", "EMPTY") else Instruments.names[t], Tdr.ACCENT)
+                    b.active = t == chosen
+                    b.onClick {
+                        chosen = t
+                        all.forEach { (k, bb) -> bb.active = k == t }
+                        desc.text = Instruments.describe(t)
+                    }
+                    all.add(t to b)
+                    val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                    lp.rightMargin = c.dpi(4)
+                    row.addView(b, lp)
+                }
+                repeat(cols - line.size) {
+                    val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                    lp.rightMargin = c.dpi(4)
+                    row.addView(View(c), lp)
+                }
+                d.row(row, 36)
+            }
+        }
+        group(tr("BATTERIES", "DRUM KITS"), Instruments.drums, 6)
+        group(tr("SYNTHÉS", "SYNTHS"), Instruments.synths + Instruments.NONE, 5)
+        // la description reste sous les choix
+        d.body.removeView(desc); d.body.addView(desc)
         d.section(tr("CANAL MIDI", "MIDI CHANNEL"))
         val chHint = Tdr.label(c, Settings.channelLabel(r.channel), 10f, Tdr.DIM)
-        val ch = Stepper(c, tr("CANAL", "CHANNEL"), 1, 16, r.channel, editable = true,
+        // un rack qu'on crée prend le premier canal libre : 1, puis 2, 3…
+        val startCh = if (r.type == Instruments.NONE) core.freeChannel(r) else r.channel
+        chHint.text = Settings.channelLabel(startCh)
+        val ch = Stepper(c, tr("CANAL", "CHANNEL"), 1, 16, startCh, editable = true,
             onChange = { chHint.text = Settings.channelLabel(it) })
         d.row(ch)
         d.body.addView(chHint)
